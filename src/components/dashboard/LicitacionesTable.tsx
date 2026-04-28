@@ -264,59 +264,66 @@ function Row({ l, onToggleFav }: { l: Licitacion; onToggleFav: () => void }) {
             {status.label}
           </span>
         </td>
-      <td className="py-3 align-middle">
-        {l.responsable ? (
-          <div className="flex items-center gap-2">
-            <div className={cn("flex h-6 w-6 items-center justify-center rounded-full text-[10px] font-semibold text-white", l.responsable.color)}>
-              {l.responsable.initials}
+        <td className="py-3 align-middle" onClick={stop}>
+          {l.responsable ? (
+            <div className="flex items-center gap-2">
+              <div className={cn("flex h-6 w-6 items-center justify-center rounded-full text-[10px] font-semibold text-white", l.responsable.color)}>
+                {l.responsable.initials}
+              </div>
+              <span className="truncate text-xs text-foreground">{l.responsable.name.split(" ")[0]}</span>
             </div>
-            <span className="truncate text-xs text-foreground">{l.responsable.name.split(" ")[0]}</span>
-          </div>
-        ) : (
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <button className="flex h-6 items-center gap-1 rounded-md border border-dashed border-border px-1.5 text-[11px] text-muted-foreground transition hover:border-border-strong hover:text-foreground">
-                <UserPlus className="h-3 w-3" />
-                Asignar
-              </button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="start">
-              <DropdownMenuLabel className="text-xs">Asignar responsable</DropdownMenuLabel>
-              <DropdownMenuSeparator />
-              {team.map((m) => (
-                <DropdownMenuItem key={m.id} className="gap-2">
-                  <div className={cn("flex h-5 w-5 items-center justify-center rounded-full text-[9px] font-semibold text-white", m.color)}>
-                    {m.initials}
-                  </div>
-                  {m.name}
-                </DropdownMenuItem>
-              ))}
-            </DropdownMenuContent>
-          </DropdownMenu>
-        )}
-      </td>
-      <td className="py-3 text-center align-middle">
-        <span
-          className={cn(
-            "inline-flex h-6 min-w-7 items-center justify-center rounded-md px-1.5 text-xs font-semibold tabular-nums",
-            l.cotizantes === 0
-              ? "bg-info text-info-foreground"
-              : l.cotizantes <= 2
-                ? "bg-success-soft text-success-soft-foreground"
-                : "bg-surface-muted text-muted-foreground",
+          ) : (
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <button className="flex h-6 items-center gap-1 rounded-md border border-dashed border-border px-1.5 text-[11px] text-muted-foreground transition hover:border-border-strong hover:text-foreground">
+                  <UserPlus className="h-3 w-3" />
+                  Asignar
+                </button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="start">
+                <DropdownMenuLabel className="text-xs">Asignar responsable</DropdownMenuLabel>
+                <DropdownMenuSeparator />
+                {team.map((m) => (
+                  <DropdownMenuItem key={m.id} className="gap-2">
+                    <div className={cn("flex h-5 w-5 items-center justify-center rounded-full text-[9px] font-semibold text-white", m.color)}>
+                      {m.initials}
+                    </div>
+                    {m.name}
+                  </DropdownMenuItem>
+                ))}
+              </DropdownMenuContent>
+            </DropdownMenu>
           )}
-        >
-          {l.cotizantes}
-        </span>
-      </td>
-      <td className="py-3 pr-2 text-right align-middle font-medium tabular-nums text-foreground">
-        {formatCLP(l.monto)}
-      </td>
-      <td className="py-3 pr-4 text-right align-middle">
-        <div className={cn("text-sm font-semibold tabular-nums", urgencyText)}>{t.label}</div>
-        <div className="text-[10px] text-muted-foreground">{t.dateLabel}</div>
-      </td>
-    </tr>
+        </td>
+        <td className="py-3 text-center align-middle">
+          <span
+            className={cn(
+              "inline-flex h-6 min-w-7 items-center justify-center rounded-md px-1.5 text-xs font-semibold tabular-nums",
+              l.cotizantes === 0
+                ? "bg-info text-info-foreground"
+                : l.cotizantes <= 2
+                  ? "bg-success-soft text-success-soft-foreground"
+                  : "bg-surface-muted text-muted-foreground",
+            )}
+          >
+            {l.cotizantes}
+          </span>
+        </td>
+        <td className="py-3 pr-2 text-right align-middle font-medium tabular-nums text-foreground">
+          {formatCLP(l.monto)}
+        </td>
+        <td className="py-3 pr-4 text-right align-middle">
+          <div className={cn("text-sm font-semibold tabular-nums", urgencyText)}>{t.label}</div>
+          <div className="text-[10px] text-muted-foreground">{t.dateLabel}</div>
+        </td>
+      </tr>
+      <CotizarModal
+        open={cotizarOpen}
+        onOpenChange={setCotizarOpen}
+        licitacion={l}
+        initialItems={getLicitacionDetail(l.id).items}
+      />
+    </>
   );
 }
 

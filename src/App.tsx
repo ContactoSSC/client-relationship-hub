@@ -6,6 +6,7 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { AppShell } from "@/components/app/AppShell";
 import Index from "./pages/Index.tsx";
 import Placeholder from "./pages/Placeholder.tsx";
+import LicitacionDetail from "./pages/LicitacionDetail.tsx";
 import NotFound from "./pages/NotFound.tsx";
 
 const queryClient = new QueryClient();
@@ -37,6 +38,7 @@ const App = () => (
                 />
               }
             />
+            <Route path="/licitaciones/:id" element={<LicitacionDetail />} />
             <Route
               path="/organismos"
               element={

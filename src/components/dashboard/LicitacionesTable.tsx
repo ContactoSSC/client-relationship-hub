@@ -1,6 +1,9 @@
 import { useMemo, useState } from "react";
-import { Star, Search, X, ListFilter, Plus, MapPin, ArrowUpDown, DollarSign, UserPlus, ExternalLink } from "lucide-react";
+import { useNavigate } from "react-router-dom";
+import { Star, Search, X, ListFilter, Plus, MapPin, ArrowUpDown, DollarSign, UserPlus, Send } from "lucide-react";
 import { licitaciones as allLicitaciones, type Licitacion, type LicitacionStatus, team } from "@/data/mock";
+import { getLicitacionDetail } from "@/data/licitacionDetail";
+import { CotizarModal } from "@/components/licitacion/CotizarModal";
 import { formatCLP, timeToDeadline } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import {
@@ -204,6 +207,8 @@ export function LicitacionesTable() {
 }
 
 function Row({ l, onToggleFav }: { l: Licitacion; onToggleFav: () => void }) {
+  const navigate = useNavigate();
+  const [cotizarOpen, setCotizarOpen] = useState(false);
   const t = timeToDeadline(l.cierre);
   const status = statusMeta[l.status];
 
@@ -216,91 +221,109 @@ function Row({ l, onToggleFav }: { l: Licitacion; onToggleFav: () => void }) {
           ? "text-warning-soft-foreground"
           : "text-foreground";
 
+  // Stop the row click when interacting with embedded controls
+  const stop = (e: React.MouseEvent) => e.stopPropagation();
+
   return (
-    <tr className="group border-b border-border/70 transition-colors hover:bg-surface-muted/60">
-      <td className="py-3 pl-4 align-middle">
-        <button
-          onClick={onToggleFav}
-          className="text-muted-foreground transition hover:text-warning"
-          aria-label="Marcar favorita"
-        >
-          <Star className={cn("h-4 w-4", l.favorita && "fill-warning text-warning")} />
-        </button>
-      </td>
-      <td className="py-3 align-middle">
-        <span className="font-mono text-[11px] text-muted-foreground">{l.codigo}</span>
-      </td>
-      <td className="py-3 align-middle">
-        <div className="flex items-center gap-2">
-          <div className="min-w-0">
-            <div className="truncate font-medium text-foreground">{l.nombre}</div>
-            <div className="truncate text-[11px] text-muted-foreground">
-              {l.organismo} <span className="opacity-60">· Región de {l.region}</span>
-            </div>
-          </div>
-          <button className="ml-1 hidden rounded p-1 text-muted-foreground opacity-0 transition hover:bg-surface-muted hover:text-foreground group-hover:opacity-100 lg:inline-flex">
-            <ExternalLink className="h-3.5 w-3.5" />
+    <>
+      <tr
+        onClick={() => navigate(`/licitaciones/${l.id}`)}
+        className="group cursor-pointer border-b border-border/70 transition-colors hover:bg-surface-muted/60"
+      >
+        <td className="py-3 pl-4 align-middle" onClick={stop}>
+          <button
+            onClick={(e) => { e.stopPropagation(); onToggleFav(); }}
+            className="text-muted-foreground transition hover:text-warning"
+            aria-label="Marcar favorita"
+          >
+            <Star className={cn("h-4 w-4", l.favorita && "fill-warning text-warning")} />
           </button>
-        </div>
-      </td>
-      <td className="py-3 align-middle">
-        <span className={cn("inline-flex items-center rounded-full px-2 py-0.5 text-[11px] font-medium", status.cls)}>
-          {status.label}
-        </span>
-      </td>
-      <td className="py-3 align-middle">
-        {l.responsable ? (
+        </td>
+        <td className="py-3 align-middle">
+          <span className="font-mono text-[11px] text-muted-foreground">{l.codigo}</span>
+        </td>
+        <td className="py-3 align-middle">
           <div className="flex items-center gap-2">
-            <div className={cn("flex h-6 w-6 items-center justify-center rounded-full text-[10px] font-semibold text-white", l.responsable.color)}>
-              {l.responsable.initials}
+            <div className="min-w-0">
+              <div className="truncate font-medium text-foreground">{l.nombre}</div>
+              <div className="truncate text-[11px] text-muted-foreground">
+                {l.organismo} <span className="opacity-60">· Región de {l.region}</span>
+              </div>
             </div>
-            <span className="truncate text-xs text-foreground">{l.responsable.name.split(" ")[0]}</span>
+            <button
+              onClick={(e) => { e.stopPropagation(); setCotizarOpen(true); }}
+              className="ml-1 hidden h-7 items-center gap-1 rounded-md border border-border bg-surface px-2 text-[11px] font-medium text-foreground opacity-0 shadow-xs transition hover:bg-surface-muted group-hover:opacity-100 lg:inline-flex"
+            >
+              <Send className="h-3 w-3" />
+              Cotizar
+            </button>
           </div>
-        ) : (
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <button className="flex h-6 items-center gap-1 rounded-md border border-dashed border-border px-1.5 text-[11px] text-muted-foreground transition hover:border-border-strong hover:text-foreground">
-                <UserPlus className="h-3 w-3" />
-                Asignar
-              </button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="start">
-              <DropdownMenuLabel className="text-xs">Asignar responsable</DropdownMenuLabel>
-              <DropdownMenuSeparator />
-              {team.map((m) => (
-                <DropdownMenuItem key={m.id} className="gap-2">
-                  <div className={cn("flex h-5 w-5 items-center justify-center rounded-full text-[9px] font-semibold text-white", m.color)}>
-                    {m.initials}
-                  </div>
-                  {m.name}
-                </DropdownMenuItem>
-              ))}
-            </DropdownMenuContent>
-          </DropdownMenu>
-        )}
-      </td>
-      <td className="py-3 text-center align-middle">
-        <span
-          className={cn(
-            "inline-flex h-6 min-w-7 items-center justify-center rounded-md px-1.5 text-xs font-semibold tabular-nums",
-            l.cotizantes === 0
-              ? "bg-info text-info-foreground"
-              : l.cotizantes <= 2
-                ? "bg-success-soft text-success-soft-foreground"
-                : "bg-surface-muted text-muted-foreground",
+        </td>
+        <td className="py-3 align-middle">
+          <span className={cn("inline-flex items-center rounded-full px-2 py-0.5 text-[11px] font-medium", status.cls)}>
+            {status.label}
+          </span>
+        </td>
+        <td className="py-3 align-middle" onClick={stop}>
+          {l.responsable ? (
+            <div className="flex items-center gap-2">
+              <div className={cn("flex h-6 w-6 items-center justify-center rounded-full text-[10px] font-semibold text-white", l.responsable.color)}>
+                {l.responsable.initials}
+              </div>
+              <span className="truncate text-xs text-foreground">{l.responsable.name.split(" ")[0]}</span>
+            </div>
+          ) : (
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <button className="flex h-6 items-center gap-1 rounded-md border border-dashed border-border px-1.5 text-[11px] text-muted-foreground transition hover:border-border-strong hover:text-foreground">
+                  <UserPlus className="h-3 w-3" />
+                  Asignar
+                </button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="start">
+                <DropdownMenuLabel className="text-xs">Asignar responsable</DropdownMenuLabel>
+                <DropdownMenuSeparator />
+                {team.map((m) => (
+                  <DropdownMenuItem key={m.id} className="gap-2">
+                    <div className={cn("flex h-5 w-5 items-center justify-center rounded-full text-[9px] font-semibold text-white", m.color)}>
+                      {m.initials}
+                    </div>
+                    {m.name}
+                  </DropdownMenuItem>
+                ))}
+              </DropdownMenuContent>
+            </DropdownMenu>
           )}
-        >
-          {l.cotizantes}
-        </span>
-      </td>
-      <td className="py-3 pr-2 text-right align-middle font-medium tabular-nums text-foreground">
-        {formatCLP(l.monto)}
-      </td>
-      <td className="py-3 pr-4 text-right align-middle">
-        <div className={cn("text-sm font-semibold tabular-nums", urgencyText)}>{t.label}</div>
-        <div className="text-[10px] text-muted-foreground">{t.dateLabel}</div>
-      </td>
-    </tr>
+        </td>
+        <td className="py-3 text-center align-middle">
+          <span
+            className={cn(
+              "inline-flex h-6 min-w-7 items-center justify-center rounded-md px-1.5 text-xs font-semibold tabular-nums",
+              l.cotizantes === 0
+                ? "bg-info text-info-foreground"
+                : l.cotizantes <= 2
+                  ? "bg-success-soft text-success-soft-foreground"
+                  : "bg-surface-muted text-muted-foreground",
+            )}
+          >
+            {l.cotizantes}
+          </span>
+        </td>
+        <td className="py-3 pr-2 text-right align-middle font-medium tabular-nums text-foreground">
+          {formatCLP(l.monto)}
+        </td>
+        <td className="py-3 pr-4 text-right align-middle">
+          <div className={cn("text-sm font-semibold tabular-nums", urgencyText)}>{t.label}</div>
+          <div className="text-[10px] text-muted-foreground">{t.dateLabel}</div>
+        </td>
+      </tr>
+      <CotizarModal
+        open={cotizarOpen}
+        onOpenChange={setCotizarOpen}
+        licitacion={l}
+        initialItems={getLicitacionDetail(l.id).items}
+      />
+    </>
   );
 }
 

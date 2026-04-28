@@ -1,6 +1,9 @@
 import { useMemo, useState } from "react";
-import { Star, Search, X, ListFilter, Plus, MapPin, ArrowUpDown, DollarSign, UserPlus, ExternalLink } from "lucide-react";
+import { useNavigate } from "react-router-dom";
+import { Star, Search, X, ListFilter, Plus, MapPin, ArrowUpDown, DollarSign, UserPlus, Send } from "lucide-react";
 import { licitaciones as allLicitaciones, type Licitacion, type LicitacionStatus, team } from "@/data/mock";
+import { getLicitacionDetail } from "@/data/licitacionDetail";
+import { CotizarModal } from "@/components/licitacion/CotizarModal";
 import { formatCLP, timeToDeadline } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import {
@@ -204,6 +207,8 @@ export function LicitacionesTable() {
 }
 
 function Row({ l, onToggleFav }: { l: Licitacion; onToggleFav: () => void }) {
+  const navigate = useNavigate();
+  const [cotizarOpen, setCotizarOpen] = useState(false);
   const t = timeToDeadline(l.cierre);
   const status = statusMeta[l.status];
 
@@ -216,38 +221,49 @@ function Row({ l, onToggleFav }: { l: Licitacion; onToggleFav: () => void }) {
           ? "text-warning-soft-foreground"
           : "text-foreground";
 
+  // Stop the row click when interacting with embedded controls
+  const stop = (e: React.MouseEvent) => e.stopPropagation();
+
   return (
-    <tr className="group border-b border-border/70 transition-colors hover:bg-surface-muted/60">
-      <td className="py-3 pl-4 align-middle">
-        <button
-          onClick={onToggleFav}
-          className="text-muted-foreground transition hover:text-warning"
-          aria-label="Marcar favorita"
-        >
-          <Star className={cn("h-4 w-4", l.favorita && "fill-warning text-warning")} />
-        </button>
-      </td>
-      <td className="py-3 align-middle">
-        <span className="font-mono text-[11px] text-muted-foreground">{l.codigo}</span>
-      </td>
-      <td className="py-3 align-middle">
-        <div className="flex items-center gap-2">
-          <div className="min-w-0">
-            <div className="truncate font-medium text-foreground">{l.nombre}</div>
-            <div className="truncate text-[11px] text-muted-foreground">
-              {l.organismo} <span className="opacity-60">· Región de {l.region}</span>
-            </div>
-          </div>
-          <button className="ml-1 hidden rounded p-1 text-muted-foreground opacity-0 transition hover:bg-surface-muted hover:text-foreground group-hover:opacity-100 lg:inline-flex">
-            <ExternalLink className="h-3.5 w-3.5" />
+    <>
+      <tr
+        onClick={() => navigate(`/licitaciones/${l.id}`)}
+        className="group cursor-pointer border-b border-border/70 transition-colors hover:bg-surface-muted/60"
+      >
+        <td className="py-3 pl-4 align-middle" onClick={stop}>
+          <button
+            onClick={(e) => { e.stopPropagation(); onToggleFav(); }}
+            className="text-muted-foreground transition hover:text-warning"
+            aria-label="Marcar favorita"
+          >
+            <Star className={cn("h-4 w-4", l.favorita && "fill-warning text-warning")} />
           </button>
-        </div>
-      </td>
-      <td className="py-3 align-middle">
-        <span className={cn("inline-flex items-center rounded-full px-2 py-0.5 text-[11px] font-medium", status.cls)}>
-          {status.label}
-        </span>
-      </td>
+        </td>
+        <td className="py-3 align-middle">
+          <span className="font-mono text-[11px] text-muted-foreground">{l.codigo}</span>
+        </td>
+        <td className="py-3 align-middle">
+          <div className="flex items-center gap-2">
+            <div className="min-w-0">
+              <div className="truncate font-medium text-foreground">{l.nombre}</div>
+              <div className="truncate text-[11px] text-muted-foreground">
+                {l.organismo} <span className="opacity-60">· Región de {l.region}</span>
+              </div>
+            </div>
+            <button
+              onClick={(e) => { e.stopPropagation(); setCotizarOpen(true); }}
+              className="ml-1 hidden h-7 items-center gap-1 rounded-md border border-border bg-surface px-2 text-[11px] font-medium text-foreground opacity-0 shadow-xs transition hover:bg-surface-muted group-hover:opacity-100 lg:inline-flex"
+            >
+              <Send className="h-3 w-3" />
+              Cotizar
+            </button>
+          </div>
+        </td>
+        <td className="py-3 align-middle">
+          <span className={cn("inline-flex items-center rounded-full px-2 py-0.5 text-[11px] font-medium", status.cls)}>
+            {status.label}
+          </span>
+        </td>
       <td className="py-3 align-middle">
         {l.responsable ? (
           <div className="flex items-center gap-2">

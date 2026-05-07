@@ -1,20 +1,19 @@
-import { TrendingUp, TrendingDown, Activity, Sparkles, Star, Zap } from "lucide-react";
+import { TrendingUp, TrendingDown, FileSignature, ShoppingCart, Truck, Wallet } from "lucide-react";
 import { kpis } from "@/data/mock";
 import { cn } from "@/lib/utils";
 
 interface KpiDef {
   key: keyof typeof kpis;
   label: string;
-  icon: typeof Activity;
+  icon: typeof FileSignature;
   highlight?: boolean;
-  hint?: string;
 }
 
 const items: KpiDef[] = [
-  { key: "activas", label: "Activas", icon: Activity },
-  { key: "nuevas", label: "Nuevas", icon: Sparkles },
-  { key: "favoritas", label: "Favoritas", icon: Star },
-  { key: "oportunidades", label: "Oportunidades", icon: Zap, highlight: true, hint: "<5h sin cotizantes" },
+  { key: "porCotizar",  label: "Por cotizar",  icon: FileSignature, highlight: true },
+  { key: "enCompra",    label: "En compra",    icon: ShoppingCart },
+  { key: "porEntregar", label: "Por entregar", icon: Truck },
+  { key: "enCobro",     label: "En cobro",     icon: Wallet },
 ];
 
 export function KpiGrid() {
@@ -31,7 +30,7 @@ export function KpiGrid() {
             trend={data.trend}
             icon={it.icon}
             highlight={it.highlight}
-            hint={it.hint ?? (data as { label?: string }).label}
+            hint={data.label}
           />
         );
       })}
@@ -52,7 +51,7 @@ function KpiCard({
   value: number;
   deltaPct: number;
   trend: number[];
-  icon: typeof Activity;
+  icon: typeof FileSignature;
   highlight?: boolean;
   hint?: string;
 }) {
@@ -100,9 +99,7 @@ function KpiCard({
       </div>
 
       <div className="mt-3 flex items-end justify-between gap-3">
-        <div className="text-[11px] text-muted-foreground">
-          {hint ?? "vs período anterior"}
-        </div>
+        <div className="text-[11px] text-muted-foreground">{hint ?? "vs período anterior"}</div>
         <Sparkline data={trend} positive={positive} highlight={highlight} />
       </div>
     </div>
@@ -139,14 +136,7 @@ function Sparkline({
 
   return (
     <svg width={w} height={h} className="opacity-90">
-      <polyline
-        fill="none"
-        stroke={stroke}
-        strokeWidth={1.5}
-        strokeLinecap="round"
-        strokeLinejoin="round"
-        points={points}
-      />
+      <polyline fill="none" stroke={stroke} strokeWidth={1.5} strokeLinecap="round" strokeLinejoin="round" points={points} />
     </svg>
   );
 }

@@ -27,7 +27,6 @@ export function CotizarModal({
   const [items, setItems] = useState<ItemSolicitado[]>(initialItems);
   const [notas, setNotas] = useState("");
 
-  // reset on open
   useMemo(() => {
     if (open) {
       setItems(initialItems);
@@ -35,7 +34,7 @@ export function CotizarModal({
     }
   }, [open, initialItems]);
 
-  const total = items.reduce((acc, i) => acc + (i.precioUnitario ?? 0) * i.cantidad, 0);
+  const total = items.reduce((acc, i) => acc + (i.precioVentaUnitario ?? 0) * i.cantidad, 0);
 
   const handleSave = (enviar: boolean) => {
     onOpenChange(false);
@@ -45,16 +44,16 @@ export function CotizarModal({
   };
 
   const updatePrecio = (id: string, value: number) => {
-    setItems((prev) => prev.map((i) => (i.id === id ? { ...i, precioUnitario: value } : i)));
+    setItems((prev) => prev.map((i) => (i.id === id ? { ...i, precioVentaUnitario: value } : i)));
   };
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-2xl">
         <DialogHeader>
-          <DialogTitle>Cotizar licitación</DialogTitle>
+          <DialogTitle>Cotizar compra</DialogTitle>
           <DialogDescription className="font-mono text-xs">
-            {licitacion.codigo} · {licitacion.organismo}
+            {licitacion.codigo} · {licitacion.organismo.institucion}
           </DialogDescription>
         </DialogHeader>
 
@@ -71,13 +70,13 @@ export function CotizarModal({
                     <th className="w-8 py-2 pl-3 text-left font-medium">#</th>
                     <th className="py-2 text-left font-medium">Descripción</th>
                     <th className="w-20 py-2 text-right font-medium">Cant.</th>
-                    <th className="w-32 py-2 text-right font-medium">Precio unit.</th>
+                    <th className="w-32 py-2 text-right font-medium">Precio venta</th>
                     <th className="w-32 py-2 pr-3 text-right font-medium">Subtotal</th>
                   </tr>
                 </thead>
                 <tbody>
                   {items.map((it) => {
-                    const subtotal = (it.precioUnitario ?? 0) * it.cantidad;
+                    const subtotal = (it.precioVentaUnitario ?? 0) * it.cantidad;
                     return (
                       <tr key={it.id} className="border-t border-border">
                         <td className="py-2 pl-3 align-middle text-muted-foreground">{it.numero}</td>
@@ -89,7 +88,7 @@ export function CotizarModal({
                         <td className="py-2 text-right align-middle">
                           <input
                             type="number"
-                            value={it.precioUnitario ?? 0}
+                            value={it.precioVentaUnitario ?? 0}
                             onChange={(e) => updatePrecio(it.id, Number(e.target.value))}
                             className="h-8 w-28 rounded-md border border-border bg-surface px-2 text-right text-sm tabular-nums focus-ring"
                           />

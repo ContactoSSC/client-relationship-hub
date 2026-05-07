@@ -6,11 +6,15 @@ import {
   X,
   ChevronRight,
   TrendingUp,
+  Calendar,
+  Truck,
+  FileText,
+  Plane,
 } from "lucide-react";
-import type { Licitacion, LicitacionStatus } from "@/data/mock";
+import type { Licitacion } from "@/data/mock";
 import { team } from "@/data/mock";
 import type { LicitacionDetail, Tag } from "@/data/licitacionDetail";
-import { formatCLP } from "@/lib/format";
+import { formatCLP, formatDate } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import {
   DropdownMenu,
@@ -20,15 +24,6 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-
-const statusOptions: { id: LicitacionStatus; label: string; cls: string }[] = [
-  { id: "nueva", label: "Nueva", cls: "bg-info-soft text-info-soft-foreground" },
-  { id: "analisis", label: "En análisis", cls: "bg-warning-soft text-warning-soft-foreground" },
-  { id: "cotizando", label: "Cotizando", cls: "bg-success-soft text-success-soft-foreground" },
-  { id: "enviada", label: "Enviada", cls: "bg-primary/10 text-primary" },
-  { id: "adjudicada", label: "Adjudicada", cls: "bg-success text-success-foreground" },
-  { id: "perdida", label: "Perdida", cls: "bg-destructive-soft text-destructive-soft-foreground" },
-];
 
 const tagColorCls: Record<Tag["color"], string> = {
   info: "bg-info-soft text-info-soft-foreground",
@@ -41,47 +36,18 @@ const tagColorCls: Record<Tag["color"], string> = {
 export function LicitacionSidePanel({
   licitacion,
   detail,
-  onStatusChange,
 }: {
   licitacion: Licitacion;
   detail: LicitacionDetail;
-  onStatusChange: (s: LicitacionStatus) => void;
 }) {
-  const current = statusOptions.find((s) => s.id === licitacion.status)!;
   const competenciaLevel = Math.min(licitacion.cotizantes / 6, 1);
 
-  // Demo "tasa de éxito" with this organismo
   const ganadas = detail.similares.filter((s) => s.resultado === "adjudicada").length;
   const cerradas = detail.similares.filter((s) => s.resultado !== "activa").length;
   const tasaExito = cerradas > 0 ? Math.round((ganadas / cerradas) * 100) : null;
 
   return (
     <aside className="space-y-4 lg:sticky lg:top-20">
-      {/* Status */}
-      <Section title="Estado">
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <button className="flex w-full items-center justify-between rounded-md border border-border bg-surface px-2.5 py-1.5 transition hover:bg-surface-muted">
-              <span className={cn("inline-flex items-center rounded-full px-2 py-0.5 text-[11px] font-medium", current.cls)}>
-                {current.label}
-              </span>
-              <ChevronRight className="h-3.5 w-3.5 rotate-90 text-muted-foreground" />
-            </button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="start" className="w-56">
-            <DropdownMenuLabel className="text-xs">Cambiar estado</DropdownMenuLabel>
-            <DropdownMenuSeparator />
-            {statusOptions.map((s) => (
-              <DropdownMenuItem key={s.id} onSelect={() => onStatusChange(s.id)}>
-                <span className={cn("inline-flex items-center rounded-full px-2 py-0.5 text-[11px] font-medium", s.cls)}>
-                  {s.label}
-                </span>
-              </DropdownMenuItem>
-            ))}
-          </DropdownMenuContent>
-        </DropdownMenu>
-      </Section>
-
       {/* Responsable */}
       <Section title="Responsable">
         <DropdownMenu>
@@ -101,6 +67,8 @@ export function LicitacionSidePanel({
             </button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="start" className="w-56">
+            <DropdownMenuLabel className="text-xs">Asignar responsable</DropdownMenuLabel>
+            <DropdownMenuSeparator />
             {team.map((m) => (
               <DropdownMenuItem key={m.id} className="gap-2">
                 <div className={cn("flex h-5 w-5 items-center justify-center rounded-full text-[9px] font-semibold text-white", m.color)}>
@@ -131,18 +99,41 @@ export function LicitacionSidePanel({
         </div>
       </Section>
 
+      {/* Datos clave operacionales */}
+      <Section title="Datos clave">
+        <dl className="space-y-2 text-xs">
+          <Row icon={Calendar} label="Publicación" value={formatDate(licitacion.publicacion)} />
+          <Row icon={Calendar} label="Cierre"      value={formatDate(licitacion.cierre)} />
+          {licitacion.plazoEntregaDias != null && (
+            <Row icon={Truck} label="Plazo entrega" value={`${licitacion.plazoEntregaDias} día(s)`} />
+          )}
+          {licitacion.oc && <Row icon={FileText} label="N° OC" value={<span className="font-mono">{licitacion.oc}</span>} />}
+          {licitacion.requiereViajeStgo && (
+            <Row icon={Plane} label="Retiro" value={<span className="text-warning">Viaje a Santiago</span>} />
+          )}
+        </dl>
+      </Section>
+
       {/* Monto */}
-      <Section title="Monto estimado">
+      <Section title="Monto disponible">
         <div className="text-xl font-semibold tabular-nums text-foreground">{formatCLP(licitacion.monto)}</div>
+        {licitacion.montoCobrado != null && (
+          <div className="mt-1 text-[11px] text-muted-foreground">
+            Cobrado: <span className="font-medium text-foreground tabular-nums">{formatCLP(licitacion.montoCobrado)}</span>
+          </div>
+        )}
       </Section>
 
       {/* Organismo */}
       <Section title="Organismo" icon={Building2}>
         <div className="space-y-1">
-          <div className="text-sm font-medium text-foreground">{licitacion.organismo}</div>
+          <div className="text-sm font-medium text-foreground">{licitacion.organismo.institucion}</div>
+          {licitacion.organismo.unidad && (
+            <div className="text-xs text-muted-foreground">{licitacion.organismo.unidad}</div>
+          )}
           <div className="inline-flex items-center gap-1 text-xs text-muted-foreground">
             <MapPin className="h-3 w-3" />
-            Región de {licitacion.region}
+            Región de {licitacion.organismo.region}
           </div>
           {tasaExito !== null && (
             <div className="mt-2.5 flex items-center justify-between rounded-md bg-surface-muted px-2.5 py-1.5">
@@ -194,6 +185,18 @@ function Section({
         {title}
       </div>
       {children}
+    </div>
+  );
+}
+
+function Row({ icon: Icon, label, value }: { icon: typeof Building2; label: string; value: React.ReactNode }) {
+  return (
+    <div className="flex items-center justify-between gap-2">
+      <dt className="inline-flex items-center gap-1.5 text-muted-foreground">
+        <Icon className="h-3 w-3" />
+        {label}
+      </dt>
+      <dd className="text-foreground">{value}</dd>
     </div>
   );
 }

@@ -1,7 +1,14 @@
 import { useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Star, Search, X, ListFilter, Plus, MapPin, ArrowUpDown, DollarSign, UserPlus, Send } from "lucide-react";
-import { licitaciones as allLicitaciones, type Licitacion, type LicitacionStatus, team } from "@/data/mock";
+import {
+  licitaciones as allLicitaciones,
+  type Licitacion,
+  type EtapaProceso,
+  team,
+  etapaMeta,
+  ETAPAS_ORDEN,
+} from "@/data/mock";
 import { getLicitacionDetail } from "@/data/licitacionDetail";
 import { CotizarModal } from "@/components/licitacion/CotizarModal";
 import { formatCLP, timeToDeadline } from "@/lib/format";
@@ -12,59 +19,86 @@ import {
   DropdownMenuItem,
   DropdownMenuLabel,
   DropdownMenuSeparator,
+  DropdownMenuCheckboxItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 
-type Tab = "activas" | "cerradas" | "adjudicadas" | "todas";
-
-const tabs: { id: Tab; label: string; count: number }[] = [
-  { id: "activas", label: "Activas", count: 732 },
-  { id: "cerradas", label: "Cerradas", count: 128 },
-  { id: "adjudicadas", label: "Adjudicadas", count: 41 },
-  { id: "todas", label: "Todas", count: 901 },
-];
-
-const statusMeta: Record<LicitacionStatus, { label: string; cls: string }> = {
-  nueva: { label: "Nueva", cls: "bg-info-soft text-info-soft-foreground" },
-  analisis: { label: "En análisis", cls: "bg-warning-soft text-warning-soft-foreground" },
-  cotizando: { label: "Cotizando", cls: "bg-success-soft text-success-soft-foreground" },
-  enviada: { label: "Enviada", cls: "bg-primary/10 text-primary" },
-  adjudicada: { label: "Adjudicada", cls: "bg-success text-success-foreground" },
-  perdida: { label: "Perdida", cls: "bg-destructive-soft text-destructive-soft-foreground" },
-};
+type Tab = "abiertas" | "operacion" | "cobro" | "todas";
 
 export function LicitacionesTable() {
-  const [tab, setTab] = useState<Tab>("activas");
+  const [tab, setTab] = useState<Tab>("abiertas");
   const [query, setQuery] = useState("");
   const [region, setRegion] = useState<string>("Todas las regiones");
   const [order, setOrder] = useState<string>("Cierre próximo");
   const [montoMin, setMontoMin] = useState<string>("");
   const [items, setItems] = useState<Licitacion[]>(allLicitaciones);
+  const [etapasFiltro, setEtapasFiltro] = useState<Set<EtapaProceso>>(new Set());
+
+  const tabFilter = (l: Licitacion): boolean => {
+    if (tab === "abiertas") return l.etapa === "abierta" || l.etapa === "cerrada";
+    if (tab === "operacion") return l.etapa === "adjudicada" || l.etapa === "en_compra" || l.etapa === "entregada";
+    if (tab === "cobro") return l.etapa === "notificada" || l.etapa === "cobro_1" || l.etapa === "cobro_2";
+    return true;
+  };
+
+  const counts = useMemo(() => ({
+    abiertas:  items.filter((l) => l.etapa === "abierta" || l.etapa === "cerrada").length,
+    operacion: items.filter((l) => ["adjudicada","en_compra","entregada"].includes(l.etapa)).length,
+    cobro:     items.filter((l) => ["notificada","cobro_1","cobro_2"].includes(l.etapa)).length,
+    todas:     items.length,
+  }), [items]);
+
+  const tabs: { id: Tab; label: string; count: number }[] = [
+    { id: "abiertas",  label: "Abiertas",      count: counts.abiertas },
+    { id: "operacion", label: "En operación",  count: counts.operacion },
+    { id: "cobro",     label: "En cobro",      count: counts.cobro },
+    { id: "todas",     label: "Todas",         count: counts.todas },
+  ];
 
   const filtered = useMemo(() => {
-    return items.filter((l) => {
-      if (region !== "Todas las regiones" && l.region !== region) return false;
-      if (montoMin && l.monto < Number(montoMin)) return false;
-      if (query) {
-        const q = query.toLowerCase();
-        if (
-          !l.codigo.toLowerCase().includes(q) &&
-          !l.organismo.toLowerCase().includes(q) &&
-          !l.nombre.toLowerCase().includes(q)
-        )
-          return false;
-      }
-      return true;
-    });
-  }, [items, region, montoMin, query]);
+    return items
+      .filter(tabFilter)
+      .filter((l) => {
+        if (region !== "Todas las regiones" && l.organismo.region !== region) return false;
+        if (montoMin && l.monto < Number(montoMin)) return false;
+        if (etapasFiltro.size > 0 && !etapasFiltro.has(l.etapa)) return false;
+        if (query) {
+          const q = query.toLowerCase();
+          if (
+            !l.codigo.toLowerCase().includes(q) &&
+            !l.organismo.institucion.toLowerCase().includes(q) &&
+            !l.nombre.toLowerCase().includes(q)
+          )
+            return false;
+        }
+        return true;
+      })
+      .sort((a, b) => {
+        if (order === "Mayor monto") return b.monto - a.monto;
+        if (order === "Menor monto") return a.monto - b.monto;
+        if (order === "Más reciente") return +new Date(b.publicacion) - +new Date(a.publicacion);
+        return +new Date(a.cierre) - +new Date(b.cierre);
+      });
+  }, [items, region, montoMin, query, etapasFiltro, tab, order]);
 
   const toggleFav = (id: string) =>
     setItems((prev) => prev.map((l) => (l.id === id ? { ...l, favorita: !l.favorita } : l)));
+
+  const toggleEtapa = (e: EtapaProceso) =>
+    setEtapasFiltro((prev) => {
+      const n = new Set(prev);
+      if (n.has(e)) n.delete(e); else n.add(e);
+      return n;
+    });
 
   const activeChips = [
     region !== "Todas las regiones" && { label: region, clear: () => setRegion("Todas las regiones") },
     montoMin && { label: `≥ ${formatCLP(Number(montoMin))}`, clear: () => setMontoMin("") },
     order !== "Cierre próximo" && { label: `Orden: ${order}`, clear: () => setOrder("Cierre próximo") },
+    ...Array.from(etapasFiltro).map((e) => ({
+      label: etapaMeta[e].label,
+      clear: () => toggleEtapa(e),
+    })),
   ].filter(Boolean) as { label: string; clear: () => void }[];
 
   return (
@@ -121,6 +155,25 @@ export function LicitacionesTable() {
           options={["Cierre próximo", "Mayor monto", "Menor monto", "Más reciente"]}
           onSelect={setOrder}
         />
+
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <button className="flex h-8 items-center gap-1.5 rounded-md border border-border bg-surface px-2.5 text-xs text-foreground transition hover:bg-surface-muted">
+              <ListFilter className="h-3.5 w-3.5 text-muted-foreground" />
+              Etapa {etapasFiltro.size > 0 && <span className="rounded-full bg-primary/10 px-1.5 py-px text-[10px] text-primary">{etapasFiltro.size}</span>}
+            </button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="start">
+            <DropdownMenuLabel className="text-xs">Filtrar por etapa</DropdownMenuLabel>
+            <DropdownMenuSeparator />
+            {ETAPAS_ORDEN.map((e) => (
+              <DropdownMenuCheckboxItem key={e} checked={etapasFiltro.has(e)} onCheckedChange={() => toggleEtapa(e)}>
+                {etapaMeta[e].label}
+              </DropdownMenuCheckboxItem>
+            ))}
+          </DropdownMenuContent>
+        </DropdownMenu>
+
         <div className="relative">
           <DollarSign className="pointer-events-none absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
           <input
@@ -152,10 +205,6 @@ export function LicitacionesTable() {
               ))}
             </div>
           )}
-          <button className="flex h-8 items-center gap-1.5 rounded-md border border-border bg-surface px-2.5 text-xs text-muted-foreground transition hover:bg-surface-muted">
-            <ListFilter className="h-3.5 w-3.5" />
-            Vistas
-          </button>
         </div>
       </div>
 
@@ -167,7 +216,7 @@ export function LicitacionesTable() {
               <th className="w-10 py-2.5 pl-4" />
               <th className="w-36 py-2.5 text-left font-medium">Código</th>
               <th className="py-2.5 text-left font-medium">Compra</th>
-              <th className="w-32 py-2.5 text-left font-medium">Estado</th>
+              <th className="w-32 py-2.5 text-left font-medium">Etapa</th>
               <th className="w-32 py-2.5 text-left font-medium">Responsable</th>
               <th className="w-24 py-2.5 text-center font-medium">Cotizantes</th>
               <th className="w-32 py-2.5 text-right font-medium">Monto</th>
@@ -181,7 +230,7 @@ export function LicitacionesTable() {
             {filtered.length === 0 && (
               <tr>
                 <td colSpan={8} className="py-16 text-center text-sm text-muted-foreground">
-                  No hay licitaciones que coincidan con los filtros.
+                  No hay compras que coincidan con los filtros.
                 </td>
               </tr>
             )}
@@ -210,18 +259,17 @@ function Row({ l, onToggleFav }: { l: Licitacion; onToggleFav: () => void }) {
   const navigate = useNavigate();
   const [cotizarOpen, setCotizarOpen] = useState(false);
   const t = timeToDeadline(l.cierre);
-  const status = statusMeta[l.status];
+  const status = etapaMeta[l.etapa];
 
   const urgencyText =
     t.urgency === "expired"
-      ? "text-destructive"
+      ? "text-muted-foreground"
       : t.urgency === "critical"
-        ? "text-warning"
+        ? "text-destructive"
         : t.urgency === "warning"
-          ? "text-warning-soft-foreground"
+          ? "text-warning"
           : "text-foreground";
 
-  // Stop the row click when interacting with embedded controls
   const stop = (e: React.MouseEvent) => e.stopPropagation();
 
   return (
@@ -247,16 +295,18 @@ function Row({ l, onToggleFav }: { l: Licitacion; onToggleFav: () => void }) {
             <div className="min-w-0">
               <div className="truncate font-medium text-foreground">{l.nombre}</div>
               <div className="truncate text-[11px] text-muted-foreground">
-                {l.organismo} <span className="opacity-60">· Región de {l.region}</span>
+                {l.organismo.institucion} <span className="opacity-60">· Región de {l.organismo.region}</span>
               </div>
             </div>
-            <button
-              onClick={(e) => { e.stopPropagation(); setCotizarOpen(true); }}
-              className="ml-1 hidden h-7 items-center gap-1 rounded-md border border-border bg-surface px-2 text-[11px] font-medium text-foreground opacity-0 shadow-xs transition hover:bg-surface-muted group-hover:opacity-100 lg:inline-flex"
-            >
-              <Send className="h-3 w-3" />
-              Cotizar
-            </button>
+            {(l.etapa === "abierta" || l.etapa === "cerrada") && (
+              <button
+                onClick={(e) => { e.stopPropagation(); setCotizarOpen(true); }}
+                className="ml-1 hidden h-7 items-center gap-1 rounded-md border border-border bg-surface px-2 text-[11px] font-medium text-foreground opacity-0 shadow-xs transition hover:bg-surface-muted group-hover:opacity-100 lg:inline-flex"
+              >
+                <Send className="h-3 w-3" />
+                Cotizar
+              </button>
+            )}
           </div>
         </td>
         <td className="py-3 align-middle">

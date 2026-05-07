@@ -9,9 +9,10 @@ import {
   MapPin,
   UserPlus,
   Check,
+  ExternalLink,
 } from "lucide-react";
 import type { Licitacion } from "@/data/mock";
-import { team } from "@/data/mock";
+import { team, etapaMeta } from "@/data/mock";
 import { timeToDeadline } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import {
@@ -25,15 +26,6 @@ import {
 import { CotizarModal } from "./CotizarModal";
 import { type ItemSolicitado } from "@/data/licitacionDetail";
 
-const statusMeta: Record<string, { label: string; cls: string }> = {
-  nueva: { label: "Nueva", cls: "bg-info-soft text-info-soft-foreground" },
-  analisis: { label: "En análisis", cls: "bg-warning-soft text-warning-soft-foreground" },
-  cotizando: { label: "Cotizando", cls: "bg-success-soft text-success-soft-foreground" },
-  enviada: { label: "Enviada", cls: "bg-primary/10 text-primary" },
-  adjudicada: { label: "Adjudicada", cls: "bg-success text-success-foreground" },
-  perdida: { label: "Perdida", cls: "bg-destructive-soft text-destructive-soft-foreground" },
-};
-
 export function LicitacionHeader({
   licitacion,
   items,
@@ -46,10 +38,12 @@ export function LicitacionHeader({
   const navigate = useNavigate();
   const [cotizarOpen, setCotizarOpen] = useState(false);
   const t = timeToDeadline(licitacion.cierre);
-  const status = statusMeta[licitacion.status];
+  const status = etapaMeta[licitacion.etapa];
+  const cerrada = t.urgency === "expired";
 
-  const countdownCls =
-    t.urgency === "expired" || t.urgency === "critical"
+  const countdownCls = cerrada
+    ? "text-muted-foreground"
+    : t.urgency === "critical"
       ? "text-destructive"
       : t.urgency === "warning"
         ? "text-warning"
@@ -59,7 +53,7 @@ export function LicitacionHeader({
     <>
       <div className="space-y-4">
         {/* Top: back + meta */}
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
           <button
             onClick={() => navigate(-1)}
             className="flex h-8 items-center gap-1.5 rounded-md px-2 text-xs text-muted-foreground transition hover:bg-surface-muted hover:text-foreground"
@@ -72,6 +66,19 @@ export function LicitacionHeader({
           <span className={cn("inline-flex items-center rounded-full px-2 py-0.5 text-[11px] font-medium", status.cls)}>
             {status.label}
           </span>
+          {licitacion.segundoLlamado && (
+            <span className="inline-flex items-center rounded-full bg-warning-soft px-2 py-0.5 text-[11px] font-medium text-warning-soft-foreground">
+              Segundo llamado
+            </span>
+          )}
+          <a
+            href="#"
+            onClick={(e) => e.preventDefault()}
+            className="ml-auto inline-flex items-center gap-1 text-[11px] text-muted-foreground transition hover:text-foreground"
+          >
+            Ver en Mercado Público
+            <ExternalLink className="h-3 w-3" />
+          </a>
         </div>
 
         {/* Title + actions */}
@@ -83,11 +90,11 @@ export function LicitacionHeader({
             <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-muted-foreground">
               <span className="inline-flex items-center gap-1.5">
                 <Building2 className="h-3.5 w-3.5" />
-                {licitacion.organismo}
+                {licitacion.organismo.institucion}
               </span>
               <span className="inline-flex items-center gap-1.5">
                 <MapPin className="h-3.5 w-3.5" />
-                Región de {licitacion.region}
+                Región de {licitacion.organismo.region}
               </span>
             </div>
           </div>
@@ -96,7 +103,7 @@ export function LicitacionHeader({
           <div className="flex flex-col items-stretch gap-3 sm:flex-row sm:items-start lg:items-end">
             <div className="rounded-lg border border-border bg-surface px-4 py-2.5 text-right">
               <div className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground">
-                Cierre en
+                {cerrada ? "Cerró" : "Cierre en"}
               </div>
               <div className={cn("text-2xl font-semibold tabular-nums leading-tight", countdownCls)}>
                 {t.label}
@@ -118,13 +125,15 @@ export function LicitacionHeader({
 
               <AssignDropdown licitacion={licitacion} />
 
-              <button
-                onClick={() => setCotizarOpen(true)}
-                className="flex h-9 items-center gap-1.5 rounded-md bg-primary px-3.5 text-sm font-medium text-primary-foreground shadow-sm transition hover:bg-primary-hover"
-              >
-                <Send className="h-3.5 w-3.5" />
-                Cotizar
-              </button>
+              {(licitacion.etapa === "abierta" || licitacion.etapa === "cerrada") && (
+                <button
+                  onClick={() => setCotizarOpen(true)}
+                  className="flex h-9 items-center gap-1.5 rounded-md bg-primary px-3.5 text-sm font-medium text-primary-foreground shadow-sm transition hover:bg-primary-hover"
+                >
+                  <Send className="h-3.5 w-3.5" />
+                  Cotizar
+                </button>
+              )}
 
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
@@ -133,7 +142,6 @@ export function LicitacionHeader({
                   </button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end">
-                  <DropdownMenuItem>Ver en Mercado Público</DropdownMenuItem>
                   <DropdownMenuItem>Duplicar como cotización</DropdownMenuItem>
                   <DropdownMenuItem>Exportar PDF</DropdownMenuItem>
                   <DropdownMenuSeparator />
